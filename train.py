@@ -20,10 +20,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from typing import Optional
 
-try:
-    import evaluate  # type: ignore
-except ModuleNotFoundError:  # pragma: no cover
-    evaluate = None
+from nltk.translate.bleu_score import corpus_bleu
 
 from collections import Counter
 import math
@@ -217,67 +214,7 @@ def evaluate_bleu(
 
     model.eval()
 
-    def _corpus_bleu(
-        predictions_tokens: list[list[str]],
-        references_tokens: list[list[list[str]]],
-        max_order: int = 4,
-        smooth: float = 1.0,
-    ) -> float:
-        matches_by_order = [0] * max_order
-        possible_matches_by_order = [0] * max_order
-        pred_len = 0
-        ref_len = 0
-
-        for pred, refs in zip(predictions_tokens, references_tokens):
-            pred_len += len(pred)
-            ref_lens = [len(r) for r in refs]
-            if ref_lens:
-                ref_len += min(ref_lens, key=lambda rl: (abs(rl - len(pred)), rl))
-
-            for order in range(1, max_order + 1):
-                pred_ngrams = Counter(
-                    tuple(pred[i : i + order]) for i in range(0, max(0, len(pred) - order + 1))
-                )
-                possible_matches_by_order[order - 1] += sum(pred_ngrams.values())
-
-                if not pred_ngrams:
-                    continue
-
-                max_ref_ngrams: Counter[tuple[str, ...]] = Counter()
-                for ref in refs:
-                    ref_ngrams = Counter(
-                        tuple(ref[i : i + order]) for i in range(0, max(0, len(ref) - order + 1))
-                    )
-                    for ng, ct in ref_ngrams.items():
-                        if ct > max_ref_ngrams[ng]:
-                            max_ref_ngrams[ng] = ct
-
-                overlap = pred_ngrams & max_ref_ngrams
-                matches_by_order[order - 1] += sum(overlap.values())
-
-        precisions = []
-        for i in range(max_order):
-            if possible_matches_by_order[i] == 0:
-                precisions.append(0.0)
-            else:
-                precisions.append(
-                    (matches_by_order[i] + smooth) / (possible_matches_by_order[i] + smooth)
-                )
-
-        if min(precisions) <= 0.0:
-            geo_mean = 0.0
-        else:
-            geo_mean = math.exp(sum((1.0 / max_order) * math.log(p) for p in precisions))
-
-        if pred_len == 0:
-            return 0.0
-
-        bp = 1.0 if pred_len > ref_len else math.exp(1.0 - float(ref_len) / float(pred_len))
-        return bp * geo_mean
-
-    bleu_metric = evaluate.load("bleu") if evaluate is not None else None
-
-    predictions = []
+    hypotheses = []
     references = []
 
     sos_idx = 2
@@ -287,12 +224,14 @@ def evaluate_bleu(
     with torch.no_grad():
 
         for batch in test_dataloader:
+
             src = batch["src"].to(device)
             tgt = batch["tgt"].to(device)
-            
+
             for i in range(src.size(0)):
 
                 src_sentence = src[i].unsqueeze(0)
+
                 src_mask = make_src_mask(src_sentence).to(device)
 
                 pred_tokens = greedy_decode(
@@ -306,6 +245,7 @@ def evaluate_bleu(
                 )
 
                 pred_tokens = pred_tokens.squeeze(0).tolist()
+
                 tgt_tokens = tgt[i].tolist()
 
                 pred_sentence = []
@@ -316,33 +256,28 @@ def evaluate_bleu(
                     if idx in [sos_idx, eos_idx, pad_idx]:
                         continue
 
-                    if hasattr(tgt_vocab, "itos"):
-                        pred_sentence.append(tgt_vocab.itos[idx])
-                    else:
-                        pred_sentence.append(
-                            tgt_vocab.lookup_token(idx)
-                        )
+                    pred_sentence.append(
+                        tgt_vocab.tgt_itos.get(idx, "<unk>")
+                    )
 
                 for idx in tgt_tokens:
 
                     if idx in [sos_idx, eos_idx, pad_idx]:
                         continue
 
-                    if hasattr(tgt_vocab, "itos"):
-                        tgt_sentence.append(tgt_vocab.itos[idx])
-                    else:
-                        tgt_sentence.append(
-                            tgt_vocab.lookup_token(idx)
-                        )
+                    tgt_sentence.append(
+                        tgt_vocab.tgt_itos.get(idx, "<unk>")
+                    )
 
-                predictions.append(pred_sentence)
+                hypotheses.append(pred_sentence)
                 references.append([tgt_sentence])
 
-    if bleu_metric is not None:
-        bleu_score = bleu_metric.compute(predictions=predictions, references=references)
-        return bleu_score["bleu"] * 100
+    bleu_score = corpus_bleu(
+        references,
+        hypotheses
+    ) * 100
 
-    return _corpus_bleu(predictions, references) * 100
+    return bleu_score
 
 
 # ══════════════════════════════════════════════════════════════════════
