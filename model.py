@@ -629,4 +629,70 @@ class Transformer(nn.Module):
     def infer(self, src_sentence: str) -> str:
 
         self.eval()
-        return src_sentence
+
+        device = next(self.parameters()).device
+
+        # very basic tokenizer
+        tokens = src_sentence.lower().strip().split()
+
+        # ensure vocab exists
+        if not hasattr(self, "src_vocab"):
+            return ""
+
+        src_indices = [self.src_vocab.get("<sos>", 2)]
+
+        src_indices += [
+            self.src_vocab.get(token, self.src_vocab.get("<unk>", 0))
+            for token in tokens
+        ]
+
+        src_indices.append(self.src_vocab.get("<eos>", 3))
+
+        src_tensor = torch.tensor(src_indices).unsqueeze(0).to(device)
+
+        src_mask = make_src_mask(src_tensor).to(device)
+
+        memory = self.encode(src_tensor, src_mask)
+
+        ys = torch.ones(1, 1).fill_(2).type(torch.long).to(device)
+
+        max_len = 100
+
+        for _ in range(max_len):
+
+            tgt_mask = make_tgt_mask(ys).to(device)
+
+            out = self.decode(
+                memory,
+                src_mask,
+                ys,
+                tgt_mask
+            )
+
+            prob = out[:, -1]
+
+            next_word = torch.argmax(prob, dim=-1).item()
+
+            ys = torch.cat(
+                [
+                    ys,
+                    torch.tensor([[next_word]], device=device)
+                ],
+                dim=1
+            )
+
+            if next_word == 3:
+                break
+
+        output_tokens = []
+
+        for idx in ys.squeeze(0).tolist():
+
+            if idx in [1, 2, 3]:
+                continue
+
+            output_tokens.append(
+                self.tgt_itos.get(idx, "<unk>")
+            )
+
+        return " ".join(output_tokens)

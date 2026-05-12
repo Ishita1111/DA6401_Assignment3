@@ -299,11 +299,8 @@ def save_checkpoint(
         "model_state_dict": model.state_dict(),
         "optimizer_state_dict": optimizer.state_dict(),
         "scheduler_state_dict": scheduler.state_dict(),
-        # "model_config": {
-        #     "src_vocab_size": model.src_embedding.num_embeddings,
-        #     "tgt_vocab_size": model.tgt_embedding.num_embeddings,
-        #     "d_model": model.d_model,
-        # } 
+        "src_vocab": model.src_vocab,
+        "tgt_vocab": model.tgt_vocab,
         "model_config": model.config
     }
 
@@ -322,6 +319,15 @@ def load_checkpoint(
     model.load_state_dict(
         checkpoint["model_state_dict"]
     )
+    
+    if "src_vocab" in checkpoint:
+        model.src_vocab = checkpoint["src_vocab"]
+
+    if "tgt_vocab" in checkpoint:
+        model.tgt_vocab = checkpoint["tgt_vocab"]
+
+    if "tgt_itos" in checkpoint:
+        model.tgt_itos = checkpoint["tgt_itos"]
 
     if optimizer is not None:
         optimizer.load_state_dict(
