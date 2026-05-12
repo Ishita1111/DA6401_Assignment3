@@ -20,7 +20,13 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from typing import Optional
 
-import evaluate
+try:
+    import evaluate  # type: ignore
+except ModuleNotFoundError:  # pragma: no cover
+    evaluate = None
+
+from collections import Counter
+import math
 from model import Transformer, make_src_mask, make_tgt_mask
 
 
@@ -211,7 +217,65 @@ def evaluate_bleu(
 
     model.eval()
 
-    bleu_metric = evaluate.load("bleu")
+    def _corpus_bleu(
+        predictions_tokens: list[list[str]],
+        references_tokens: list[list[list[str]]],
+        max_order: int = 4,
+        smooth: float = 1.0,
+    ) -> float:
+        matches_by_order = [0] * max_order
+        possible_matches_by_order = [0] * max_order
+        pred_len = 0
+        ref_len = 0
+
+        for pred, refs in zip(predictions_tokens, references_tokens):
+            pred_len += len(pred)
+            ref_lens = [len(r) for r in refs]
+            if ref_lens:
+                ref_len += min(ref_lens, key=lambda rl: (abs(rl - len(pred)), rl))
+
+            for order in range(1, max_order + 1):
+                pred_ngrams = Counter(
+                    tuple(pred[i : i + order]) for i in range(0, max(0, len(pred) - order + 1))
+                )
+                possible_matches_by_order[order - 1] += sum(pred_ngrams.values())
+
+                if not pred_ngrams:
+                    continue
+
+                max_ref_ngrams: Counter[tuple[str, ...]] = Counter()
+                for ref in refs:
+                    ref_ngrams = Counter(
+                        tuple(ref[i : i + order]) for i in range(0, max(0, len(ref) - order + 1))
+                    )
+                    for ng, ct in ref_ngrams.items():
+                        if ct > max_ref_ngrams[ng]:
+                            max_ref_ngrams[ng] = ct
+
+                overlap = pred_ngrams & max_ref_ngrams
+                matches_by_order[order - 1] += sum(overlap.values())
+
+        precisions = []
+        for i in range(max_order):
+            if possible_matches_by_order[i] == 0:
+                precisions.append(0.0)
+            else:
+                precisions.append(
+                    (matches_by_order[i] + smooth) / (possible_matches_by_order[i] + smooth)
+                )
+
+        if min(precisions) <= 0.0:
+            geo_mean = 0.0
+        else:
+            geo_mean = math.exp(sum((1.0 / max_order) * math.log(p) for p in precisions))
+
+        if pred_len == 0:
+            return 0.0
+
+        bp = 1.0 if pred_len > ref_len else math.exp(1.0 - float(ref_len) / float(pred_len))
+        return bp * geo_mean
+
+    bleu_metric = evaluate.load("bleu") if evaluate is not None else None
 
     predictions = []
     references = []
@@ -274,12 +338,11 @@ def evaluate_bleu(
                 predictions.append(pred_sentence)
                 references.append([tgt_sentence])
 
-    bleu_score = bleu_metric.compute(
-        predictions=predictions,
-        references=references
-    )
+    if bleu_metric is not None:
+        bleu_score = bleu_metric.compute(predictions=predictions, references=references)
+        return bleu_score["bleu"] * 100
 
-    return bleu_score["bleu"] * 100
+    return _corpus_bleu(predictions, references) * 100
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -348,9 +411,190 @@ def load_checkpoint(
 
 def run_training_experiment() -> None:
 
-    print("Training pipeline setup complete.")
-    print("Implement dataset + dataloaders before running training.")
+    import wandb
 
+    from dataset import Multi30kDataset, collate_fn
+    from lr_scheduler import NoamScheduler
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    wandb.init(
+        project="da6401-Assignment3",
+        config={
+            "batch_size": 64,
+            "num_epochs": 15,
+            "d_model": 256,
+            "num_layers": 4,
+            "num_heads": 8,
+            "d_ff": 1024,
+            "dropout": 0.1,
+            "warmup_steps": 4000,
+            "learning_rate": 1.0,
+            "label_smoothing": 0.1,
+        }
+    )
+
+    config = wandb.config
+
+    # ─────────────────────────────────────────────
+    # DATASETS
+    # ─────────────────────────────────────────────
+
+    train_dataset = Multi30kDataset(split="train")
+
+    val_dataset = Multi30kDataset(split="validation")
+    val_dataset.src_vocab = train_dataset.src_vocab
+    val_dataset.tgt_vocab = train_dataset.tgt_vocab
+    val_dataset.src_itos = train_dataset.src_itos
+    val_dataset.tgt_itos = train_dataset.tgt_itos
+    val_dataset.data = val_dataset.process_data()
+
+    test_dataset = Multi30kDataset(split="test")
+    test_dataset.src_vocab = train_dataset.src_vocab
+    test_dataset.tgt_vocab = train_dataset.tgt_vocab
+    test_dataset.src_itos = train_dataset.src_itos
+    test_dataset.tgt_itos = train_dataset.tgt_itos
+    test_dataset.data = test_dataset.process_data()
+
+    # ─────────────────────────────────────────────
+    # DATALOADERS
+    # ─────────────────────────────────────────────
+
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=config.batch_size,
+        shuffle=True,
+        collate_fn=collate_fn
+    )
+
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=config.batch_size,
+        shuffle=False,
+        collate_fn=collate_fn
+    )
+
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=1,
+        shuffle=False,
+        collate_fn=collate_fn
+    )
+
+    # ─────────────────────────────────────────────
+    # MODEL
+    # ─────────────────────────────────────────────
+
+    model = Transformer(
+        src_vocab_size=len(train_dataset.src_vocab),
+        tgt_vocab_size=len(train_dataset.tgt_vocab),
+        d_model=config.d_model,
+        N=config.num_layers,
+        num_heads=config.num_heads,
+        d_ff=config.d_ff,
+        dropout=config.dropout,
+    ).to(device)
+
+    # required for infer()
+    model.src_vocab = train_dataset.src_vocab
+    model.tgt_itos = train_dataset.tgt_itos
+
+    # ─────────────────────────────────────────────
+    # OPTIMIZER
+    # ─────────────────────────────────────────────
+
+    optimizer = torch.optim.Adam(
+        model.parameters(),
+        lr=config.learning_rate,
+        betas=(0.9, 0.98),
+        eps=1e-9
+    )
+
+    scheduler = NoamScheduler(
+        optimizer,
+        d_model=config.d_model,
+        warmup_steps=config.warmup_steps
+    )
+
+    loss_fn = LabelSmoothingLoss(
+        vocab_size=len(train_dataset.tgt_vocab),
+        pad_idx=1,
+        smoothing=config.label_smoothing
+    )
+
+    # ─────────────────────────────────────────────
+    # TRAINING LOOP
+    # ─────────────────────────────────────────────
+
+    best_val_loss = float("inf")
+
+    for epoch in range(config.num_epochs):
+
+        train_loss = run_epoch(
+            train_loader,
+            model,
+            loss_fn,
+            optimizer,
+            scheduler,
+            epoch_num=epoch,
+            is_train=True,
+            device=device
+        )
+
+        val_loss = run_epoch(
+            val_loader,
+            model,
+            loss_fn,
+            optimizer=None,
+            scheduler=None,
+            epoch_num=epoch,
+            is_train=False,
+            device=device
+        )
+
+        print(
+            f"Epoch {epoch+1} | "
+            f"Train Loss: {train_loss:.4f} | "
+            f"Val Loss: {val_loss:.4f}"
+        )
+
+        wandb.log({
+            "epoch": epoch,
+            "train_loss": train_loss,
+            "val_loss": val_loss,
+            "learning_rate": optimizer.param_groups[0]["lr"]
+        })
+
+        if val_loss < best_val_loss:
+
+            best_val_loss = val_loss
+
+            save_checkpoint(
+                model,
+                optimizer,
+                scheduler,
+                epoch,
+                path="best_checkpoint.pt"
+            )
+
+    # ─────────────────────────────────────────────
+    # FINAL BLEU
+    # ─────────────────────────────────────────────
+
+    bleu = evaluate_bleu(
+        model,
+        test_loader,
+        train_dataset,
+        device=device
+    )
+
+    print(f"Test BLEU: {bleu:.2f}")
+
+    wandb.log({
+        "test_bleu": bleu
+    })
+
+    wandb.finish()
 
 if __name__ == "__main__":
     run_training_experiment()

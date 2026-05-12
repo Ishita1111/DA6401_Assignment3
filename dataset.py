@@ -1,8 +1,28 @@
-from datasets import load_dataset
 from collections import Counter
 import spacy
 import torch
 from torch.nn.utils.rnn import pad_sequence
+
+try:
+    from datasets import load_dataset
+except ModuleNotFoundError as e:
+    raise ModuleNotFoundError(
+        "Missing dependency: 'datasets' (HuggingFace Datasets).\n"
+        "Install it with:\n"
+        "  python -m pip install -r requirements.txt\n"
+        "If you're on Python 3.7, make sure 'requirements.txt' pins a compatible version."
+    ) from e
+
+
+def _load_spacy_model(model_name: str):
+    try:
+        return spacy.load(model_name)
+    except OSError as e:
+        raise OSError(
+            f"spaCy model '{model_name}' is not installed.\n"
+            f"Install it with:\n"
+            f"  python -m spacy download {model_name}"
+        ) from e
 
 class Multi30kDataset:
     def __init__(self, split='train'):
@@ -12,8 +32,8 @@ class Multi30kDataset:
         self.split = split
         self.dataset = load_dataset("bentrevett/multi30k")[split]
 
-        self.spacy_de = spacy.load("de_core_news_sm")
-        self.spacy_en = spacy.load("en_core_web_sm")
+        self.spacy_de = _load_spacy_model("de_core_news_sm")
+        self.spacy_en = _load_spacy_model("en_core_web_sm")
 
         self.special_tokens = {
             "<unk>": 0,

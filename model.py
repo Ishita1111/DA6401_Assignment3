@@ -538,6 +538,19 @@ class Transformer(nn.Module):
         if checkpoint_path is not None:
             gdown.download(id="<.pth drive id>", output=checkpoint_path, quiet=False)
             self.load_state_dict(torch.load(checkpoint_path, map_location="cpu"))
+            
+        checkpoint = torch.load(
+            checkpoint_path,
+            map_location="cpu"
+        )
+
+        self.load_state_dict(
+            checkpoint["model_state_dict"]
+        )
+        if "src_vocab" in checkpoint:
+            self.src_vocab = checkpoint["src_vocab"]
+        if "tgt_itos" in checkpoint:
+            self.tgt_itos = checkpoint["tgt_itos"]
         # init should also load the model weights if checkpoint path provided, download the .pth file like this
 
     # ── AUTOGRADER HOOKS ── keep these signatures exactly ─────────────
