@@ -167,10 +167,6 @@ def run_epoch(
             if is_train:
 
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(
-                    model.parameters(),
-                    max_norm=1.0
-                )
 
                 # ─────────────────────────────────
                 # Gradient norm
@@ -429,15 +425,15 @@ def run_training_experiment() -> None:
     wandb.init(
         project="da6401-Assignment3",
         config={
-            "batch_size": 128,
-            "num_epochs": 20,
-            "d_model": 512,
+            "batch_size": 64,
+            "num_epochs": 25,
+            "d_model": 256,
             "num_layers": 4,
             "num_heads": 8,
-            "d_ff": 2048,
+            "d_ff": 1024,
             "dropout": 0.05,
-            "warmup_steps": 8000,
-            "learning_rate": 1.0,
+            "warmup_steps": 4000,
+            "learning_rate": 0.1,
             "label_smoothing": 0.1,
         }
     )
@@ -519,7 +515,6 @@ def run_training_experiment() -> None:
         num_heads=config.num_heads,
         d_ff=config.d_ff,
         dropout=config.dropout,
-        checkpoint_path=None
     ).to(device)
 
     # required for infer() and evaluate_bleu()
@@ -557,7 +552,6 @@ def run_training_experiment() -> None:
     # ─────────────────────────────────────────────
 
     best_val_loss = float("inf")
-    best_bleu = 0
 
     for epoch in range(config.num_epochs):
 
@@ -596,23 +590,9 @@ def run_training_experiment() -> None:
             "learning_rate": optimizer.param_groups[0]["lr"]
         })
 
-        epoch_bleu = evaluate_bleu(
-            model,
-            test_loader,
-            train_dataset,
-            device=device,
-            max_len=50
-        )
+        if val_loss < best_val_loss:
 
-        print(f"Epoch BLEU: {epoch_bleu:.2f}")
-
-        wandb.log({
-            "epoch_bleu": epoch_bleu
-        })
-        
-        if epoch_bleu > best_bleu:
-
-            best_bleu = epoch_bleu
+            best_val_loss = val_loss
 
             save_checkpoint(
                 model,

@@ -491,11 +491,11 @@ class Transformer(nn.Module):
         self,
         src_vocab_size: int = 18669,
         tgt_vocab_size: int = 9797,
-        d_model: int = 512,
+        d_model: int = 256,
         N: int = 4,
         num_heads: int = 8,
-        d_ff: int = 2048,
-        dropout: float = 0.05,
+        d_ff: int = 1024,
+        dropout: float = 0.1,
         checkpoint_path: str = None,
     ) -> None:
         super().__init__()
@@ -534,48 +534,56 @@ class Transformer(nn.Module):
         self.encoder = Encoder(encoder_layer, N)
         self.decoder = Decoder(decoder_layer, N)
         self.fc_out = nn.Linear(d_model, tgt_vocab_size)
-        self.fc_out.weight = self.tgt_embedding.weight
         self.dropout = nn.Dropout(dropout)
 
-        if checkpoint_path is not None:
-            print(f"Checkpoint path: {checkpoint_path}", flush=True)
+        if checkpoint_path is None:
+            checkpoint_path = "best_checkpoint.pt"
 
-            if not os.path.exists(checkpoint_path):
+        print(f"Checkpoint path: {checkpoint_path}", flush=True)
 
-                print("Checkpoint not found locally. Downloading...", flush=True)
+        if not os.path.exists(checkpoint_path):
 
-                gdown.download(
-                    id="YOUR_FILE_ID",
-                    output=checkpoint_path,
-                    quiet=False
-                )
+            print("Checkpoint not found locally. Downloading...", flush=True)
 
-            print("Loading checkpoint...", flush=True)
-
-            checkpoint = torch.load(
-                checkpoint_path,
-                map_location="cpu"
+            gdown.download(
+                id="file_id",
+                output=checkpoint_path,
+                quiet=False
             )
 
-            print("Checkpoint loaded successfully", flush=True)
+        else:
+            print("Checkpoint already exists locally", flush=True)
 
-            self.load_state_dict(
-                checkpoint["model_state_dict"]
-            )
+        print("Loading checkpoint...", flush=True)
 
-            print("Model weights loaded", flush=True)
+        checkpoint = torch.load(
+            checkpoint_path,
+            map_location="cpu"
+        )
 
-            if "src_vocab" in checkpoint:
-                self.src_vocab = checkpoint["src_vocab"]
+        print("Checkpoint loaded successfully", flush=True)
 
-            if "tgt_vocab" in checkpoint:
-                self.tgt_vocab = checkpoint["tgt_vocab"]
+        self.load_state_dict(
+            checkpoint["model_state_dict"]
+        )
 
-            if "src_itos" in checkpoint:
-                self.src_itos = checkpoint["src_itos"]
+        print("Model weights loaded", flush=True)
 
-            if "tgt_itos" in checkpoint:
-                self.tgt_itos = checkpoint["tgt_itos"]
+        if "src_vocab" in checkpoint:
+            self.src_vocab = checkpoint["src_vocab"]
+            print("src_vocab loaded", flush=True)
+
+        if "tgt_vocab" in checkpoint:
+            self.tgt_vocab = checkpoint["tgt_vocab"]
+            print("tgt_vocab loaded", flush=True)
+            
+        if "src_itos" in checkpoint:
+            self.src_itos = checkpoint["src_itos"]
+            print("src_itos loaded", flush=True)
+
+        if "tgt_itos" in checkpoint:
+            self.tgt_itos = checkpoint["tgt_itos"]
+            print("tgt_itos loaded", flush=True)
         
         # init should also load the model weights if checkpoint path provided, download the .pth file like this
 
