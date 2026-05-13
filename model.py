@@ -546,7 +546,7 @@ class Transformer(nn.Module):
             print("Checkpoint not found locally. Downloading...", flush=True)
 
             gdown.download(
-                id="YOUR_FILE_ID",
+                id="1RGCRrOUgK8P34CD-I1nP_9DN-79E7T26",
                 output=checkpoint_path,
                 quiet=False
             )
@@ -579,9 +579,11 @@ class Transformer(nn.Module):
             
         if "src_itos" in checkpoint:
             self.src_itos = checkpoint["src_itos"]
+            print("src_itos loaded", flush=True)
 
         if "tgt_itos" in checkpoint:
             self.tgt_itos = checkpoint["tgt_itos"]
+            print("tgt_itos loaded", flush=True)
         
         # init should also load the model weights if checkpoint path provided, download the .pth file like this
 
