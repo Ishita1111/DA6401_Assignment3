@@ -364,6 +364,8 @@ def save_checkpoint(
         "scheduler_state_dict": scheduler.state_dict(),
         "src_vocab": model.src_vocab,
         "tgt_vocab": model.tgt_vocab,
+        "src_itos": model.src_itos,
+        "tgt_itos": model.tgt_itos,
         "model_config": model.config
     }
 

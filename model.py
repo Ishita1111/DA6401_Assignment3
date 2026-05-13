@@ -573,9 +573,15 @@ class Transformer(nn.Module):
             self.src_vocab = checkpoint["src_vocab"]
             print("src_vocab loaded", flush=True)
 
+        if "tgt_vocab" in checkpoint:
+            self.tgt_vocab = checkpoint["tgt_vocab"]
+            print("tgt_vocab loaded", flush=True)
+            
+        if "src_itos" in checkpoint:
+            self.src_itos = checkpoint["src_itos"]
+
         if "tgt_itos" in checkpoint:
             self.tgt_itos = checkpoint["tgt_itos"]
-            print("tgt_itos loaded", flush=True)
         
         # init should also load the model weights if checkpoint path provided, download the .pth file like this
 
