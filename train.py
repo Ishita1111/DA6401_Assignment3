@@ -519,6 +519,7 @@ def run_training_experiment() -> None:
         num_heads=config.num_heads,
         d_ff=config.d_ff,
         dropout=config.dropout,
+        checkpoint_path=None
     ).to(device)
 
     # required for infer() and evaluate_bleu()
