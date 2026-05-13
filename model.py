@@ -541,7 +541,7 @@ class Transformer(nn.Module):
             if not os.path.exists(checkpoint_path):
 
                 gdown.download(
-                    id="YOUR_FILE_ID",
+                    id="1J9YVO-6kp8ndm3ebQz0G5VT_JajBF2XA",
                     output=checkpoint_path,
                     quiet=False
                 )
