@@ -536,54 +536,61 @@ class Transformer(nn.Module):
         self.fc_out = nn.Linear(d_model, tgt_vocab_size)
         self.dropout = nn.Dropout(dropout)
 
-        if checkpoint_path is None:
-            checkpoint_path = "best_checkpoint.pt"
+        if checkpoint_path is not None:
 
-        print(f"Checkpoint path: {checkpoint_path}", flush=True)
+            print(f"Checkpoint path: {checkpoint_path}", flush=True)
 
-        if not os.path.exists(checkpoint_path):
+            if not os.path.exists(checkpoint_path):
 
-            print("Checkpoint not found locally. Downloading...", flush=True)
+                print("Checkpoint not found locally.", flush=True)
 
-            gdown.download(
-                id="file_id",
-                output=checkpoint_path,
-                quiet=False
-            )
+                # Only download if a valid Drive ID exists
+                if "YOUR_FILE_ID" not in "file_id":
 
-        else:
-            print("Checkpoint already exists locally", flush=True)
+                    print("Downloading checkpoint...", flush=True)
 
-        print("Loading checkpoint...", flush=True)
+                    gdown.download(
+                        id="file_id",
+                        output=checkpoint_path,
+                        quiet=False
+                    )
 
-        checkpoint = torch.load(
-            checkpoint_path,
-            map_location="cpu"
-        )
+                else:
 
-        print("Checkpoint loaded successfully", flush=True)
+                    print(
+                        "No valid checkpoint file ID provided. Skipping load.",
+                        flush=True
+                    )
 
-        self.load_state_dict(
-            checkpoint["model_state_dict"]
-        )
+            # Only attempt loading if file now exists
+            if os.path.exists(checkpoint_path):
 
-        print("Model weights loaded", flush=True)
+                print("Loading checkpoint...", flush=True)
 
-        if "src_vocab" in checkpoint:
-            self.src_vocab = checkpoint["src_vocab"]
-            print("src_vocab loaded", flush=True)
+                checkpoint = torch.load(
+                    checkpoint_path,
+                    map_location="cpu"
+                )
 
-        if "tgt_vocab" in checkpoint:
-            self.tgt_vocab = checkpoint["tgt_vocab"]
-            print("tgt_vocab loaded", flush=True)
-            
-        if "src_itos" in checkpoint:
-            self.src_itos = checkpoint["src_itos"]
-            print("src_itos loaded", flush=True)
+                self.load_state_dict(
+                    checkpoint["model_state_dict"]
+                )
 
-        if "tgt_itos" in checkpoint:
-            self.tgt_itos = checkpoint["tgt_itos"]
-            print("tgt_itos loaded", flush=True)
+                print("Checkpoint loaded successfully", flush=True)
+
+                if "src_vocab" in checkpoint:
+                    self.src_vocab = checkpoint["src_vocab"]
+
+                if "tgt_vocab" in checkpoint:
+                    self.tgt_vocab = checkpoint["tgt_vocab"]
+
+                if "src_itos" in checkpoint:
+                    self.src_itos = checkpoint["src_itos"]
+
+                if "tgt_itos" in checkpoint:
+                    self.tgt_itos = checkpoint["tgt_itos"]
+
+        
         
         # init should also load the model weights if checkpoint path provided, download the .pth file like this
 
