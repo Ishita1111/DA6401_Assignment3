@@ -491,11 +491,11 @@ class Transformer(nn.Module):
         self,
         src_vocab_size: int = 18669,
         tgt_vocab_size: int = 9797,
-        d_model: int = 256,
+        d_model: int = 512,
         N: int = 4,
         num_heads: int = 8,
-        d_ff: int = 1024,
-        dropout: float = 0.1,
+        d_ff: int = 2048,
+        dropout: float = 0.05,
         checkpoint_path: str = None,
     ) -> None:
         super().__init__()
@@ -534,6 +534,7 @@ class Transformer(nn.Module):
         self.encoder = Encoder(encoder_layer, N)
         self.decoder = Decoder(decoder_layer, N)
         self.fc_out = nn.Linear(d_model, tgt_vocab_size)
+        self.fc_out.weight = self.tgt_embedding.weight
         self.dropout = nn.Dropout(dropout)
 
         if checkpoint_path is None:
