@@ -102,20 +102,23 @@ def run_epoch(
     device: str = "cpu",
 ) -> float:
 
+    import wandb
+    from tqdm import tqdm
+
     if is_train:
         model.train()
     else:
         model.eval()
 
     total_loss = 0.0
-    
+
     progress_bar = tqdm(
         data_iter,
         desc=f"{'Train' if is_train else 'Val'} Epoch {epoch_num+1}",
         leave=False
     )
 
-    for batch in progress_bar:
+    for batch_idx, batch in enumerate(progress_bar):
 
         src = batch["src"].to(device)
         tgt = batch["tgt"].to(device)
@@ -138,20 +141,73 @@ def run_epoch(
                 tgt_mask
             )
 
-            logits = logits.reshape(-1, logits.size(-1))
-            tgt_output = tgt_output.reshape(-1)
+            vocab_size = logits.size(-1)
 
-            loss = loss_fn(logits, tgt_output)
+            logits_flat = logits.reshape(-1, vocab_size)
+            tgt_output_flat = tgt_output.reshape(-1)
+
+            loss = loss_fn(
+                logits_flat,
+                tgt_output_flat
+            )
+
+            # ─────────────────────────────────────
+            # Prediction confidence
+            # ─────────────────────────────────────
+
+            probs = torch.softmax(
+                logits_flat,
+                dim=-1
+            )
+
+            max_probs = probs.max(dim=-1)[0]
+
+            avg_confidence = max_probs.mean().item()
 
             if is_train:
+
                 loss.backward()
+
+                # ─────────────────────────────────
+                # Gradient norm
+                # ─────────────────────────────────
+
+                total_norm = 0.0
+
+                for p in model.parameters():
+
+                    if p.grad is not None:
+
+                        param_norm = p.grad.data.norm(2)
+
+                        total_norm += param_norm.item() ** 2
+
+                total_norm = total_norm ** 0.5
 
                 optimizer.step()
 
                 if scheduler is not None:
                     scheduler.step()
 
+                # ─────────────────────────────────
+                # WandB batch logging
+                # ─────────────────────────────────
+
+                wandb.log({
+                    "batch_loss": loss.item(),
+                    "gradient_norm": total_norm,
+                    "prediction_confidence": avg_confidence,
+                    "learning_rate": optimizer.param_groups[0]["lr"]
+                })
+
         total_loss += loss.item()
+
+        avg_loss_so_far = total_loss / (batch_idx + 1)
+
+        progress_bar.set_postfix({
+            "loss": f"{avg_loss_so_far:.4f}",
+            "conf": f"{avg_confidence:.3f}"
+        })
 
     avg_loss = total_loss / len(data_iter)
 
@@ -459,8 +515,11 @@ def run_training_experiment() -> None:
         dropout=config.dropout,
     ).to(device)
 
-    # required for infer()
+    # required for infer() and evaluate_bleu()
     model.src_vocab = train_dataset.src_vocab
+    model.tgt_vocab = train_dataset.tgt_vocab
+    
+    model.src_itos = train_dataset.src_itos
     model.tgt_itos = train_dataset.tgt_itos
 
     # ─────────────────────────────────────────────

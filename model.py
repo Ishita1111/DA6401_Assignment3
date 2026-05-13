@@ -184,6 +184,7 @@ class MultiHeadAttention(nn.Module):
         V = V.view(batch_size, -1, self.num_heads, self.d_k).transpose(1, 2)
 
         attn_output, attn_weights = scaled_dot_product_attention(Q, K, V, mask)
+        self.attention_weights = attn_weights
 
         attn_output = self.dropout(attn_output)
 
