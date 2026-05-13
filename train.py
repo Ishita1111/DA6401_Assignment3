@@ -25,6 +25,7 @@ from nltk.translate.bleu_score import corpus_bleu
 from collections import Counter
 import math
 from model import Transformer, make_src_mask, make_tgt_mask
+import tqdm
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -105,8 +106,14 @@ def run_epoch(
         model.eval()
 
     total_loss = 0.0
+    
+    progress_bar = tqdm(
+        data_iter,
+        desc=f"{'Train' if is_train else 'Val'} Epoch {epoch_num+1}",
+        leave=False
+    )
 
-    for batch in data_iter:
+    for batch in progress_bar:
 
         src = batch["src"].to(device)
         tgt = batch["tgt"].to(device)
