@@ -32,6 +32,8 @@ import tqdm
 #  LABEL SMOOTHING LOSS
 # ══════════════════════════════════════════════════════════════════════
 
+print("Starting training pipeline...", flush=True)
+
 class LabelSmoothingLoss(nn.Module):
 
     def __init__(
@@ -352,6 +354,8 @@ def load_checkpoint(
 # ══════════════════════════════════════════════════════════════════════
 
 def run_training_experiment() -> None:
+    
+    print("Starting datasets...", flush=True)
 
     import wandb
 
@@ -382,21 +386,39 @@ def run_training_experiment() -> None:
     # DATASETS
     # ─────────────────────────────────────────────
 
+    print("Loading training dataset...", flush=True)
+
     train_dataset = Multi30kDataset(split="train")
 
+    print("Loading validation dataset...", flush=True)
+
     val_dataset = Multi30kDataset(split="validation")
+
     val_dataset.src_vocab = train_dataset.src_vocab
     val_dataset.tgt_vocab = train_dataset.tgt_vocab
     val_dataset.src_itos = train_dataset.src_itos
     val_dataset.tgt_itos = train_dataset.tgt_itos
+    
+    print("Processing validation dataset...", flush=True)
+    
     val_dataset.data = val_dataset.process_data()
 
+    print("Validation dataset processed", flush=True)
+
+    print("Loading test dataset...", flush=True)
+
     test_dataset = Multi30kDataset(split="test")
+
     test_dataset.src_vocab = train_dataset.src_vocab
     test_dataset.tgt_vocab = train_dataset.tgt_vocab
     test_dataset.src_itos = train_dataset.src_itos
     test_dataset.tgt_itos = train_dataset.tgt_itos
+    
+    print("Processing test dataset...", flush=True)
+    
     test_dataset.data = test_dataset.process_data()
+
+    print("Test dataset processed", flush=True)
 
     # ─────────────────────────────────────────────
     # DATALOADERS

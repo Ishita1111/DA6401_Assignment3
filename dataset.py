@@ -57,7 +57,10 @@ class Multi30kDataset:
             print("Vocabulary built")
 
         print("\nProcessing dataset...")
-        self.data = self.process_data()
+        if split == "train":
+            self.data = self.process_data()
+        else:
+            self.data = []
         print("Dataset processing complete")
 
     # ─────────────────────────────────────────────
