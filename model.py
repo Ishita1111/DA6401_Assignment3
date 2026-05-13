@@ -536,30 +536,46 @@ class Transformer(nn.Module):
         self.fc_out = nn.Linear(d_model, tgt_vocab_size)
         self.dropout = nn.Dropout(dropout)
 
-        if checkpoint_path is not None:
+        if checkpoint_path is None:
+            checkpoint_path = "best_checkpoint.pt"
 
-            if not os.path.exists(checkpoint_path):
+        print(f"Checkpoint path: {checkpoint_path}", flush=True)
 
-                gdown.download(
-                    id="1J9YVO-6kp8ndm3ebQz0G5VT_JajBF2XA",
-                    output=checkpoint_path,
-                    quiet=False
-                )
+        if not os.path.exists(checkpoint_path):
 
-            checkpoint = torch.load(
-                checkpoint_path,
-                map_location="cpu"
+            print("Checkpoint not found locally. Downloading...", flush=True)
+
+            gdown.download(
+                id="YOUR_FILE_ID",
+                output=checkpoint_path,
+                quiet=False
             )
 
-            self.load_state_dict(
-                checkpoint["model_state_dict"]
-            )
+        else:
+            print("Checkpoint already exists locally", flush=True)
 
-            if "src_vocab" in checkpoint:
-                self.src_vocab = checkpoint["src_vocab"]
+        print("Loading checkpoint...", flush=True)
 
-            if "tgt_itos" in checkpoint:
-                self.tgt_itos = checkpoint["tgt_itos"]
+        checkpoint = torch.load(
+            checkpoint_path,
+            map_location="cpu"
+        )
+
+        print("Checkpoint loaded successfully", flush=True)
+
+        self.load_state_dict(
+            checkpoint["model_state_dict"]
+        )
+
+        print("Model weights loaded", flush=True)
+
+        if "src_vocab" in checkpoint:
+            self.src_vocab = checkpoint["src_vocab"]
+            print("src_vocab loaded", flush=True)
+
+        if "tgt_itos" in checkpoint:
+            self.tgt_itos = checkpoint["tgt_itos"]
+            print("tgt_itos loaded", flush=True)
         
         # init should also load the model weights if checkpoint path provided, download the .pth file like this
 
