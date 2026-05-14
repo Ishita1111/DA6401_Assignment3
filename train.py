@@ -453,7 +453,7 @@ def run_training_experiment() -> None:
 
     wandb.init(
         project="da6401-Assignment3",
-        name="noam_scheduler_run",
+        name="fixed_lr_run",
         group="2.1",
         config={
             "batch_size": 128,
@@ -562,16 +562,18 @@ def run_training_experiment() -> None:
 
     optimizer = torch.optim.Adam(
         model.parameters(),
-        lr=config.learning_rate,
+        lr=1e-4,
         betas=(0.9, 0.98),
         eps=1e-9
     )
 
-    scheduler = NoamScheduler(
-        optimizer,
-        d_model=config.d_model,
-        warmup_steps=config.warmup_steps
-    )
+    scheduler = None
+    
+    # scheduler = NoamScheduler(
+    #     optimizer,
+    #     d_model=config.d_model,
+    #     warmup_steps=config.warmup_steps
+    # )
 
     loss_fn = LabelSmoothingLoss(
         vocab_size=len(train_dataset.tgt_vocab),
