@@ -111,6 +111,7 @@ def run_epoch(
         model.eval()
 
     total_loss = 0.0
+    total_accuracy = 0.0
 
     progress_bar = tqdm(
         data_iter,
@@ -150,6 +151,13 @@ def run_epoch(
                 logits_flat,
                 tgt_output_flat
             )
+            
+            accuracy = compute_accuracy(
+                logits,
+                tgt_output
+            )
+
+            total_accuracy += accuracy
 
             # ─────────────────────────────────────
             # Prediction confidence
@@ -204,14 +212,35 @@ def run_epoch(
 
         avg_loss_so_far = total_loss / (batch_idx + 1)
 
+        avg_accuracy_so_far = total_accuracy / (batch_idx + 1)
+
         progress_bar.set_postfix({
             "loss": f"{avg_loss_so_far:.4f}",
-            "conf": f"{avg_confidence:.3f}"
+            "acc": f"{avg_accuracy_so_far:.4f}"
         })
 
     avg_loss = total_loss / len(data_iter)
+    avg_accuracy = total_accuracy / len(data_iter)
 
-    return avg_loss
+    return avg_loss, avg_accuracy
+
+def compute_accuracy(
+    logits: torch.Tensor,
+    targets: torch.Tensor,
+    pad_idx: int = 1
+):
+    predictions = torch.argmax(
+        logits,
+        dim=-1
+    )
+
+    mask = targets != pad_idx
+    correct = (
+        (predictions == targets) & mask
+    ).sum().item()
+
+    total = mask.sum().item()
+    return correct / total
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -424,6 +453,8 @@ def run_training_experiment() -> None:
 
     wandb.init(
         project="da6401-Assignment3",
+        name="noam_scheduler_run",
+        group = "2.1"
         config={
             "batch_size": 64,
             "num_epochs": 25,
@@ -556,7 +587,7 @@ def run_training_experiment() -> None:
 
     for epoch in range(config.num_epochs):
 
-        train_loss = run_epoch(
+        train_loss, train_acc = run_epoch(
             train_loader,
             model,
             loss_fn,
@@ -567,7 +598,7 @@ def run_training_experiment() -> None:
             device=device
         )
 
-        val_loss = run_epoch(
+        val_loss, val_acc = run_epoch(
             val_loader,
             model,
             loss_fn,
@@ -587,7 +618,9 @@ def run_training_experiment() -> None:
         wandb.log({
             "epoch": epoch,
             "train_loss": train_loss,
+            "train_accuracy": train_acc,
             "val_loss": val_loss,
+            "val_accuracy": val_acc,
             "learning_rate": optimizer.param_groups[0]["lr"]
         })
 
