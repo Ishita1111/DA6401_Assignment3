@@ -491,11 +491,11 @@ class Transformer(nn.Module):
         self,
         src_vocab_size: int = 18669,
         tgt_vocab_size: int = 9797,
-        d_model: int = 256,
+        d_model: int = 512,
         N: int = 4,
         num_heads: int = 8,
         d_ff: int = 1024,
-        dropout: float = 0.1,
+        dropout: float = 0.05,
         checkpoint_path: str = None,
     ) -> None:
         super().__init__()
