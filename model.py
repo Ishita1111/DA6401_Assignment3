@@ -24,6 +24,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+USE_SCALING = True
 
 # ══════════════════════════════════════════════════════════════════════
 #   STANDALONE ATTENTION FUNCTION  
@@ -58,9 +59,16 @@ def scaled_dot_product_attention(
     
     
     d_k = Q.size(-1)
-    scores = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(d_k)
-    if mask is not None:
-        scores = scores.masked_fill(mask == True, float("-inf"))
+    if USE_SCALING:
+        scores = torch.matmul(
+            Q,
+            K.transpose(-2, -1)
+        ) / math.sqrt(d_k)
+    else:
+        scores = torch.matmul(
+            Q,
+            K.transpose(-2, -1)
+        )
     attn_w = torch.softmax(scores, dim=-1)
     output = torch.matmul(attn_w, V)
     

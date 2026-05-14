@@ -179,7 +179,20 @@ def run_epoch(
                 # ─────────────────────────────────
                 # Gradient norm
                 # ─────────────────────────────────
+                query_grad_norm = (
+                    model.encoder.layers[0]
+                    .self_attn.W_q.weight.grad
+                    .norm()
+                    .item()
+                )
 
+                key_grad_norm = (
+                    model.encoder.layers[0]
+                    .self_attn.W_k.weight.grad
+                    .norm()
+                    .item()
+                )
+                
                 total_norm = 0.0
 
                 for p in model.parameters():
@@ -205,6 +218,8 @@ def run_epoch(
                     "batch_loss": loss.item(),
                     "gradient_norm": total_norm,
                     "prediction_confidence": avg_confidence,
+                    "query_grad_norm": query_grad_norm,
+                    "key_grad_norm": key_grad_norm,
                     "learning_rate": optimizer.param_groups[0]["lr"]
                 })
 
@@ -457,8 +472,8 @@ def run_training_experiment() -> None:
 
     wandb.init(
         project="da6401-Assignment3",
-        name="fixed_lr_run",
-        group="2.1",
+        name="with scaling",
+        group="2.2",
         config={
             "batch_size": 128,
             "num_epochs": 10,
@@ -570,14 +585,12 @@ def run_training_experiment() -> None:
         betas=(0.9, 0.98),
         eps=1e-9
     )
-
-    scheduler = None
     
-    # scheduler = NoamScheduler(
-    #     optimizer,
-    #     d_model=config.d_model,
-    #     warmup_steps=config.warmup_steps
-    # )
+    scheduler = NoamScheduler(
+        optimizer,
+        d_model=config.d_model,
+        warmup_steps=config.warmup_steps
+    )
 
     loss_fn = LabelSmoothingLoss(
         vocab_size=len(train_dataset.tgt_vocab),
