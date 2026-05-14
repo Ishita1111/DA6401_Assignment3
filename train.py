@@ -454,17 +454,17 @@ def run_training_experiment() -> None:
     wandb.init(
         project="da6401-Assignment3",
         name="noam_scheduler_run",
-        group = "2.1"
+        group="2.1",
         config={
-            "batch_size": 64,
-            "num_epochs": 25,
+            "batch_size": 128,
+            "num_epochs": 8,
             "d_model": 512,
             "num_layers": 4,
             "num_heads": 8,
-            "d_ff": 1024,
+            "d_ff": 2048,
             "dropout": 0.05,
-            "warmup_steps": 4000,
-            "learning_rate": 1,
+            "warmup_steps": 8000,
+            "learning_rate": 1.0,
             "label_smoothing": 0.1,
         }
     )
