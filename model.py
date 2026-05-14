@@ -550,7 +550,7 @@ class Transformer(nn.Module):
                     print("Downloading checkpoint...", flush=True)
 
                     gdown.download(
-                        id="file_id",
+                        id="1AmLcraTm5NXAJVE_0LqVGFu7n-kRDdKD",
                         output=checkpoint_path,
                         quiet=False
                     )
