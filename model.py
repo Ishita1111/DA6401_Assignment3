@@ -559,8 +559,7 @@ class Transformer(nn.Module):
                 gdown.download(
                     id="1twH5MjnOniGjPGQeEL0Ba9i-rbLgAeAL",
                     output=checkpoint_path,
-                    quiet=False,
-                    fuzzy=True
+                    quiet=False
                 )
 
             print("Loading checkpoint...", flush=True)
