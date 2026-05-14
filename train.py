@@ -433,7 +433,7 @@ def run_training_experiment() -> None:
             "d_ff": 1024,
             "dropout": 0.05,
             "warmup_steps": 4000,
-            "learning_rate": 0.1,
+            "learning_rate": 1,
             "label_smoothing": 0.1,
         }
     )
