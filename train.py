@@ -472,7 +472,7 @@ def run_training_experiment() -> None:
 
     wandb.init(
         project="da6401-Assignment3",
-        name="with scaling",
+        name="without scaling",
         group="2.2",
         config={
             "batch_size": 128,

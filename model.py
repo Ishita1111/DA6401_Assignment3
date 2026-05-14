@@ -24,7 +24,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-USE_SCALING = True
+USE_SCALING = False
 
 # ══════════════════════════════════════════════════════════════════════
 #   STANDALONE ATTENTION FUNCTION  
