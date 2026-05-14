@@ -457,7 +457,7 @@ def run_training_experiment() -> None:
         group="2.1",
         config={
             "batch_size": 128,
-            "num_epochs": 8,
+            "num_epochs": 10,
             "d_model": 512,
             "num_layers": 4,
             "num_heads": 8,
