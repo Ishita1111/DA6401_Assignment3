@@ -617,14 +617,6 @@ def run_training_experiment() -> None:
 
     print("Test dataset processed", flush=True)
     
-    # for 2.3
-    visualize_attention_heads(
-        model,
-        sentence="a man is playing guitar",
-        dataset=train_dataset,
-        device=device
-    )
-
     # ─────────────────────────────────────────────
     # DATALOADERS
     # ─────────────────────────────────────────────
@@ -670,6 +662,14 @@ def run_training_experiment() -> None:
     
     model.src_itos = train_dataset.src_itos
     model.tgt_itos = train_dataset.tgt_itos
+    
+    # for 2.3
+    visualize_attention_heads(
+        model,
+        sentence="a man is playing guitar",
+        dataset=train_dataset,
+        device=device
+    )
 
     # ─────────────────────────────────────────────
     # OPTIMIZER
