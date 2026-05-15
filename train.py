@@ -548,8 +548,10 @@ def load_checkpoint(
 #   EXPERIMENT ENTRY POINT
 # ══════════════════════════════════════════════════════════════════════
 
+TRAIN_MODE = False
+
 def run_training_experiment() -> None:
-    
+
     print("Starting datasets...", flush=True)
 
     import wandb
@@ -595,9 +597,9 @@ def run_training_experiment() -> None:
     val_dataset.tgt_vocab = train_dataset.tgt_vocab
     val_dataset.src_itos = train_dataset.src_itos
     val_dataset.tgt_itos = train_dataset.tgt_itos
-    
+
     print("Processing validation dataset...", flush=True)
-    
+
     val_dataset.data = val_dataset.process_data()
 
     print("Validation dataset processed", flush=True)
@@ -610,13 +612,13 @@ def run_training_experiment() -> None:
     test_dataset.tgt_vocab = train_dataset.tgt_vocab
     test_dataset.src_itos = train_dataset.src_itos
     test_dataset.tgt_itos = train_dataset.tgt_itos
-    
+
     print("Processing test dataset...", flush=True)
-    
+
     test_dataset.data = test_dataset.process_data()
 
     print("Test dataset processed", flush=True)
-    
+
     # ─────────────────────────────────────────────
     # DATALOADERS
     # ─────────────────────────────────────────────
@@ -646,34 +648,51 @@ def run_training_experiment() -> None:
     # MODEL
     # ─────────────────────────────────────────────
 
-    # model = Transformer(
-    #     src_vocab_size=len(train_dataset.src_vocab),
-    #     tgt_vocab_size=len(train_dataset.tgt_vocab),
-    #     d_model=config.d_model,
-    #     N=config.num_layers,
-    #     num_heads=config.num_heads,
-    #     d_ff=config.d_ff,
-    #     dropout=config.dropout
-    # ).to(device)
-    
-    # for 2.3
-    model = Transformer().to(device)
+    if TRAIN_MODE:
+
+        print("Running in TRAIN mode", flush=True)
+
+        model = Transformer(
+            src_vocab_size=len(train_dataset.src_vocab),
+            tgt_vocab_size=len(train_dataset.tgt_vocab),
+            d_model=config.d_model,
+            N=config.num_layers,
+            num_heads=config.num_heads,
+            d_ff=config.d_ff,
+            dropout=config.dropout,
+            checkpoint_path=None
+        ).to(device)
+
+    else:
+
+        print("Running in INFERENCE mode", flush=True)
+
+        model = Transformer().to(device)
 
     # required for infer() and evaluate_bleu()
     model.src_vocab = train_dataset.src_vocab
     model.tgt_vocab = train_dataset.tgt_vocab
-    
+
     model.src_itos = train_dataset.src_itos
     model.tgt_itos = train_dataset.tgt_itos
-    
-    # for 2.3
-    visualize_attention_heads(
-        model,
-        sentence="a man is playing guitar",
-        dataset=train_dataset,
-        device=device
-    )
-    
+
+    # ─────────────────────────────────────────────
+    # VISUALIZATION / INFERENCE ONLY MODE
+    # ─────────────────────────────────────────────
+
+    if not TRAIN_MODE:
+
+        visualize_attention_heads(
+            model,
+            sentence="a man is playing guitar",
+            dataset=train_dataset,
+            device=device
+        )
+
+        wandb.finish()
+
+        return
+
     # ─────────────────────────────────────────────
     # OPTIMIZER
     # ─────────────────────────────────────────────
@@ -684,7 +703,7 @@ def run_training_experiment() -> None:
         betas=(0.9, 0.98),
         eps=1e-9
     )
-    
+
     scheduler = NoamScheduler(
         optimizer,
         d_model=config.d_model,
@@ -770,9 +789,9 @@ def run_training_experiment() -> None:
     wandb.log({
         "test_bleu": bleu
     })
-    
+
     wandb.finish()
-    return
+
 
 if __name__ == "__main__":
     run_training_experiment()
