@@ -389,6 +389,95 @@ def evaluate_bleu(
     return bleu_score
 
 
+def visualize_attention_heads(
+    model,
+    sentence,
+    dataset,
+    device="cpu"
+):
+    
+    import wandb
+    import matplotlib as plt 
+    
+    model.eval()
+
+    tokens = sentence.lower().split()
+
+    src_indices = [dataset.src_vocab["<sos>"]]
+
+    src_indices += [
+        dataset.src_vocab.get(
+            token,
+            dataset.src_vocab["<unk>"]
+        )
+        for token in tokens
+    ]
+
+    src_indices.append(
+        dataset.src_vocab["<eos>"]
+    )
+
+    src_tensor = torch.tensor(
+        src_indices
+    ).unsqueeze(0).to(device)
+
+    src_mask = make_src_mask(
+        src_tensor
+    ).to(device)
+
+    with torch.no_grad():
+
+        _ = model.encode(
+            src_tensor,
+            src_mask
+        )
+
+    attention = (
+        model.encoder.layers[-1]
+        .self_attn.attention_weights
+    )
+
+    # shape:
+    # [batch, heads, seq_len, seq_len]
+
+    attention = attention[0].cpu()
+
+    token_labels = (
+        ["<sos>"] +
+        tokens +
+        ["<eos>"]
+    )
+
+    for head in range(attention.size(0)):
+
+        fig, ax = plt.subplots(figsize=(8, 8))
+
+        heatmap = ax.imshow(
+            attention[head]
+        )
+
+        ax.set_xticks(range(len(token_labels)))
+        ax.set_yticks(range(len(token_labels)))
+
+        ax.set_xticklabels(
+            token_labels,
+            rotation=45
+        )
+
+        ax.set_yticklabels(token_labels)
+
+        ax.set_title(
+            f"Attention Head {head}"
+        )
+
+        plt.colorbar(heatmap)
+
+        wandb.log({
+            f"attention_head_{head}": wandb.Image(fig)
+        })
+
+        plt.close(fig)
+
 # ══════════════════════════════════════════════════════════════════════
 #   CHECKPOINT UTILITIES
 # ══════════════════════════════════════════════════════════════════════
@@ -472,8 +561,8 @@ def run_training_experiment() -> None:
 
     wandb.init(
         project="da6401-Assignment3",
-        name="without scaling",
-        group="2.2",
+        name="attention rollout",
+        group="2.3",
         config={
             "batch_size": 128,
             "num_epochs": 10,
@@ -527,6 +616,14 @@ def run_training_experiment() -> None:
     test_dataset.data = test_dataset.process_data()
 
     print("Test dataset processed", flush=True)
+    
+    # for 2.3
+    visualize_attention_heads(
+        model,
+        sentence="a man is playing guitar",
+        dataset=train_dataset,
+        device=device
+    )
 
     # ─────────────────────────────────────────────
     # DATALOADERS
@@ -564,8 +661,7 @@ def run_training_experiment() -> None:
         N=config.num_layers,
         num_heads=config.num_heads,
         d_ff=config.d_ff,
-        dropout=config.dropout,
-        checkpoint_path=None
+        dropout=config.dropout
     ).to(device)
 
     # required for infer() and evaluate_bleu()
