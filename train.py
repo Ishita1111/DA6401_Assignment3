@@ -397,7 +397,7 @@ def visualize_attention_heads(
 ):
     
     import wandb
-    import matplotlib as plt 
+    import matplotlib.pyplot as plt
     
     model.eval()
 
