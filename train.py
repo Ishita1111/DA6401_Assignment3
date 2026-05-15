@@ -646,15 +646,18 @@ def run_training_experiment() -> None:
     # MODEL
     # ─────────────────────────────────────────────
 
-    model = Transformer(
-        src_vocab_size=len(train_dataset.src_vocab),
-        tgt_vocab_size=len(train_dataset.tgt_vocab),
-        d_model=config.d_model,
-        N=config.num_layers,
-        num_heads=config.num_heads,
-        d_ff=config.d_ff,
-        dropout=config.dropout
-    ).to(device)
+    # model = Transformer(
+    #     src_vocab_size=len(train_dataset.src_vocab),
+    #     tgt_vocab_size=len(train_dataset.tgt_vocab),
+    #     d_model=config.d_model,
+    #     N=config.num_layers,
+    #     num_heads=config.num_heads,
+    #     d_ff=config.d_ff,
+    #     dropout=config.dropout
+    # ).to(device)
+    
+    # for 2.3
+    model = Transformer().to(device)
 
     # required for infer() and evaluate_bleu()
     model.src_vocab = train_dataset.src_vocab
@@ -670,7 +673,7 @@ def run_training_experiment() -> None:
         dataset=train_dataset,
         device=device
     )
-
+    
     # ─────────────────────────────────────────────
     # OPTIMIZER
     # ─────────────────────────────────────────────
@@ -767,8 +770,9 @@ def run_training_experiment() -> None:
     wandb.log({
         "test_bleu": bleu
     })
-
+    
     wandb.finish()
+    return
 
 if __name__ == "__main__":
     run_training_experiment()
