@@ -563,7 +563,7 @@ def run_training_experiment() -> None:
 
     wandb.init(
         project="da6401-Assignment3",
-        name="sinusoidal_pe",
+        name="learned_pe",
         group="2.4",
         config={
             "batch_size": 128,

@@ -25,7 +25,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 USE_SCALING = False
-USE_LEARNED_POSITIONAL_ENCODING = False
+USE_LEARNED_POSITIONAL_ENCODING = True
 
 # ══════════════════════════════════════════════════════════════════════
 #   STANDALONE ATTENTION FUNCTION  
