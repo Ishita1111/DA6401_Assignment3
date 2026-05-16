@@ -25,6 +25,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 USE_SCALING = False
+USE_LEARNED_POSITIONAL_ENCODING = False
 
 # ══════════════════════════════════════════════════════════════════════
 #   STANDALONE ATTENTION FUNCTION  
@@ -250,6 +251,42 @@ class PositionalEncoding(nn.Module):
         """
         seq_len = x.size(1)
         x = x + self.pe[:, :seq_len]
+        return self.dropout(x)
+    
+    
+class LearnedPositionalEncoding(nn.Module):
+
+    def __init__(
+        self,
+        d_model: int,
+        max_len: int = 5000,
+        dropout: float = 0.1
+    ):
+        super().__init__()
+
+        self.dropout = nn.Dropout(dropout)
+
+        self.position_embedding = nn.Embedding(
+            max_len,
+            d_model
+        )
+
+    def forward(self, x):
+
+        batch_size, seq_len, d_model = x.shape
+
+        positions = torch.arange(
+            0,
+            seq_len,
+            device=x.device
+        ).unsqueeze(0)
+
+        pos_embeddings = self.position_embedding(
+            positions
+        )
+
+        x = x + pos_embeddings
+
         return self.dropout(x)
 
 
@@ -520,10 +557,17 @@ class Transformer(nn.Module):
         self.d_model = d_model
         self.src_embedding = nn.Embedding(src_vocab_size, d_model)
         self.tgt_embedding = nn.Embedding(tgt_vocab_size, d_model)
-        self.positional_encoding = PositionalEncoding(
-            d_model,
-            dropout
-        )
+        
+        if USE_LEARNED_POSITIONAL_ENCODING:
+            self.positional_encoding = LearnedPositionalEncoding(
+                d_model,
+                dropout=dropout
+            )
+        else:
+            self.positional_encoding = PositionalEncoding(
+                d_model,
+                dropout
+            )
 
         encoder_layer = EncoderLayer(
             d_model,

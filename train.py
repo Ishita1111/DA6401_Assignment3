@@ -563,8 +563,8 @@ def run_training_experiment() -> None:
 
     wandb.init(
         project="da6401-Assignment3",
-        name="attention rollout",
-        group="2.3",
+        name="sinusoidal_pe",
+        group="2.4",
         config={
             "batch_size": 128,
             "num_epochs": 10,
