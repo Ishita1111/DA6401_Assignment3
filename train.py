@@ -175,6 +175,18 @@ def run_epoch(
             if is_train:
 
                 loss.backward()
+                
+                with torch.no_grad():
+                    probs = torch.softmax(logits, dim=-1)
+                    correct_token_probs = probs.gather(
+                        dim=-1,
+                        index=tgt_output.unsqueeze(-1)
+                    ).squeeze(-1)
+
+                    non_pad_mask = (tgt_output != 1)
+                    confidence = correct_token_probs[
+                        non_pad_mask
+                    ].mean().item()
 
                 # ─────────────────────────────────
                 # Gradient norm
@@ -220,6 +232,7 @@ def run_epoch(
                     "prediction_confidence": avg_confidence,
                     "query_grad_norm": query_grad_norm,
                     "key_grad_norm": key_grad_norm,
+                    "prediction_confidence": confidence,
                     "learning_rate": optimizer.param_groups[0]["lr"]
                 })
 
@@ -563,8 +576,8 @@ def run_training_experiment() -> None:
 
     wandb.init(
         project="da6401-Assignment3",
-        name="learned_pe",
-        group="2.4",
+        name="labelsmoothing_0.1",
+        group="2.5",
         config={
             "batch_size": 128,
             "num_epochs": 10,
