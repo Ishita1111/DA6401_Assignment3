@@ -548,7 +548,7 @@ def load_checkpoint(
 #   EXPERIMENT ENTRY POINT
 # ══════════════════════════════════════════════════════════════════════
 
-TRAIN_MODE = False
+TRAIN_MODE = True
 
 def run_training_experiment() -> None:
 
